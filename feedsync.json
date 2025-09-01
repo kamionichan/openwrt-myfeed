@@ -43,11 +43,11 @@
       "dest": "luci-app-tailscale"
     },
     {
-      "name": "myautocore",
-      "repo": "https://github.com/sirpdboy/myautocore.git",
-      "branch": "main",
-      "src": "myautocore",
-      "dest": "myautocore"
+      "name": "ddns-go",
+      "repo": "https://github.com/jeessy2/ddns-go.git",
+      "branch": "master",
+      "src": ".",
+      "dest": "ddns-go"
     }
     
   ]
