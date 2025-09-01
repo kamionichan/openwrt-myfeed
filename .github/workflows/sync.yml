@@ -1,0 +1,75 @@
+name: Sync packages into feed
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 每天UTC 03:00，可改
+  workflow_dispatch:       # 手动触发
+permissions:
+  contents: write
+concurrency:
+  group: sync-feed
+  cancel-in-progress: true
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure jq is available
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+      - name: Sync from manifest
+        env:
+          MANIFEST: feedsync.json
+        run: |
+          set -euo pipefail
+
+          get_or_default() {
+            local query="$1" default="$2"
+            local v
+            v=$(jq -r "$query // empty" "$MANIFEST")
+            if [ -z "$v" ] || [ "$v" = "null" ]; then echo "$default"; else echo "$v"; fi
+          }
+
+          count=$(jq '.packages | length' "$MANIFEST")
+          echo "Total packages: $count"
+
+          for i in $(seq 0 $((count-1))); do
+            name=$(jq -r ".packages[$i].name" "$MANIFEST")
+            repo=$(jq -r ".packages[$i].repo" "$MANIFEST")
+            branch=$(get_or_default ".packages[$i].branch" "main")
+            src=$(get_or_default ".packages[$i].src" ".")
+            dest=$(get_or_default ".packages[$i].dest" "$name")
+
+            echo "==> Sync $name from $repo@$branch:$src -> $dest"
+
+            tmp=$(mktemp -d)
+            git clone --depth=1 --no-checkout -b "$branch" "$repo" "$tmp"
+            (
+              cd "$tmp"
+              git sparse-checkout init --cone
+              git sparse-checkout set "$src"
+              git checkout
+            )
+
+            mkdir -p "$dest"
+            rsync -a --delete \
+              --exclude ".git" \
+              --exclude ".github" \
+              --exclude ".gitmodules" \
+              "$tmp/$src/" "$dest/"
+
+            rm -rf "$tmp"
+          done
+
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore(feed): sync upstream packages [skip ci]"
+            git push
+          else
+            echo "No changes."
+          fi
