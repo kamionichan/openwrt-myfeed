@@ -8,6 +8,13 @@
       "dest": "luci-app-OpenClash"
     },
     {
+      "name": "luci-app-argon-config",
+      "repo": "https://github.com/jerrykuku/luci-app-argon-config.git",
+      "branch": "master",
+      "src": ".",
+      "dest": "luci-app-argon-config"
+    },
+    {
       "name": "luci-theme-argon",
       "repo": "https://github.com/jerrykuku/luci-theme-argon.git",
       "branch": "master",
