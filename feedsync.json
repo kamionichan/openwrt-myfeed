@@ -20,6 +20,20 @@
       "branch": "master",
       "src": ".",
       "dest": "luci-theme-argon"
+    },
+    {
+      "name": "luci-app-advanced",
+      "repo": "https://github.com/sirpdboy/luci-app-advanced.git",
+      "branch": "master",
+      "src": ".",
+      "dest": "luci-app-advanced"
+    },
+    {
+      "name": "luci-app-ddns-go",
+      "repo": "https://github.com/sirpdboy/luci-app-ddns-go.git",
+      "branch": "main",
+      "src": "luci-app-ddns-go",
+      "dest": "luci-app-ddns-go"
     }
   ]
 }
