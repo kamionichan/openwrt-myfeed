@@ -80,7 +80,8 @@ jobs:
             
             rm -rf "$tmp"
           done
-
+      - name: Commit and push
+        run: |
           # 配置提交身份
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -93,12 +94,4 @@ jobs:
           else
             git commit -m "chore(feed): sync upstream packages [skip ci]"
             git push origin "HEAD:${{ github.ref_name }}"
-          fi
-          
-          # 判断暂存区是否有变更
-          if git diff --cached --quiet; then
-            echo "No changes."
-          else
-            git commit -m "chore(feed): sync upstream packages [skip ci]"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
