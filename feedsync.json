@@ -34,6 +34,13 @@
       "branch": "main",
       "src": "luci-app-ddns-go",
       "dest": "luci-app-ddns-go"
+    },
+    {
+      "name": "luci-app-tailscale",
+      "repo": "https://github.com/asvow/luci-app-tailscale.git",
+      "branch": "main",
+      "src": ".",
+      "dest": "luci-app-tailscale"
     }
   ]
 }
