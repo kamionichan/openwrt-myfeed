@@ -41,6 +41,14 @@
       "branch": "main",
       "src": ".",
       "dest": "luci-app-tailscale"
+    },
+    {
+      "name": "myautocore",
+      "repo": "https://github.com/sirpdboy/myautocore.git",
+      "branch": "main",
+      "src": "myautocore",
+      "dest": "myautocore"
     }
+    
   ]
 }
