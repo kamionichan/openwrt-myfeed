@@ -44,9 +44,9 @@
     },
     {
       "name": "ddns-go",
-      "repo": "https://github.com/jeessy2/ddns-go.git",
-      "branch": "master",
-      "src": ".",
+      "repo": "https://github.com/sirpdboy/luci-app-ddns-go.git",
+      "branch": "main",
+      "src": "ddns-go",
       "dest": "ddns-go"
     }
     
