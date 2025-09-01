@@ -25,6 +25,7 @@ jobs:
       - name: Sync from manifest
         env:
           MANIFEST: feedsync.json
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
