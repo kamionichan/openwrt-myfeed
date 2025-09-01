@@ -1,0 +1,18 @@
+{
+  "packages": [
+    {
+      "name": "luci-app-OpenClash",
+      "repo": "https://github.com/vernesong/OpenClash.git",
+      "branch": "master",
+      "src": "OpenClash/luci-app-openclash",
+      "dest": "luci-app-OpenClash"
+    },
+    {
+      "name": "luci-theme-argon",
+      "repo": "gh repo clone jerrykuku/luci-theme-argon",
+      "branch": "main",
+      "src": ".",
+      "dest": "luci-theme-argon"
+    }
+  ]
+}
