@@ -9,7 +9,7 @@
     },
     {
       "name": "luci-theme-argon",
-      "repo": "gh repo clone jerrykuku/luci-theme-argon",
+      "repo": "https://github.com/jerrykuku/luci-theme-argon.git",
       "branch": "main",
       "src": ".",
       "dest": "luci-theme-argon"
