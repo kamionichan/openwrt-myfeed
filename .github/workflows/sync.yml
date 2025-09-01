@@ -48,22 +48,36 @@ jobs:
 
             echo "==> Sync $name from $repo@$branch:$src -> $dest"
 
+            # 克隆（浅克隆整个仓库，避免 sparse-checkout 丢目录）
             tmp=$(mktemp -d)
-            git clone --depth=1 --no-checkout -b "$branch" "$repo" "$tmp"
-            (
-              cd "$tmp"
-              git sparse-checkout init --cone
-              git sparse-checkout set "$src"
-              git checkout
-            )
-
+            if ! git clone --depth=1 -b "$branch" "$repo" "$tmp"; then
+              echo "Fallback to default branch"
+              git clone --depth=1 "$repo" "$tmp"
+            fi
+            
+            # 路径校验
+            if [ ! -d "$tmp/$src" ]; then
+              echo "ERROR: upstream path not found: $src"
+              find "$tmp" -maxdepth 2 -type d
+              exit 1
+            fi
+            
+            # 调试输出：源目录实际包含内容
+            echo "Source listing ($repo@$branch:$src):"
+            find "$tmp/$src" -maxdepth 2 -print
+            
+            # 复制到目标目录（先别用 --delete，确认无误再加回）
             mkdir -p "$dest"
-            rsync -a --delete \
+            rsync -av \
               --exclude ".git" \
               --exclude ".github" \
               --exclude ".gitmodules" \
               "$tmp/$src/" "$dest/"
-
+            
+            # 调试输出：目标目录内容
+            echo "Dest listing after copy ($dest):"
+            find "$dest" -maxdepth 2 -print
+            
             rm -rf "$tmp"
           done
 
@@ -73,6 +87,13 @@ jobs:
           
           # 先把变更全部加入暂存区（包含新文件/删除）
           git add -A
+          jq -r '.packages[] | (.dest // .name)' "$MANIFEST" | sort -u | xargs -I{} git add -f -- {}
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore(feed): sync upstream packages [skip ci]"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
           
           # 判断暂存区是否有变更
           if git diff --cached --quiet; then
