@@ -22,11 +22,11 @@
       "dest": "luci-theme-argon"
     },
     {
-      "name": "luci-app-advanced",
-      "repo": "https://github.com/sirpdboy/luci-app-advanced.git",
-      "branch": "master",
+      "name": "luci-app-advancedplus",
+      "repo": "https://github.com/sirpdboy/luci-app-advancedplus.git",
+      "branch": "main",
       "src": ".",
-      "dest": "luci-app-advanced"
+      "dest": "luci-app-advancedplus"
     },
     {
       "name": "luci-app-ddns-go",
