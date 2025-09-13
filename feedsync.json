@@ -48,6 +48,13 @@
       "branch": "main",
       "src": "ddns-go",
       "dest": "ddns-go"
+    },
+    {
+      "name": "miniupnpd",
+      "repo": "https://github.com/openwrt/packages.git",
+      "branch": "main",
+      "src": "net/miniupnpd",
+      "dest": "miniupnpd"
     }
     
   ]
