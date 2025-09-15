@@ -125,12 +125,36 @@ get)
 	"standalone")
 		set -- "$@" --standalone --listen-v6
 		;;
+	"nginx")
+		# 使用 acme.sh 的 --nginx 模式，自动在 nginx 中临时下发 http-01
+		# 这里做一个最基本的存在性检查，避免误选
+		if command -v nginx >/dev/null 2>&1; then
+			set -- "$@" --nginx
+		else
+			log err "validation_method set to 'nginx' but nginx binary not found in PATH"
+			exit 1
+		fi
+		;;
+	"apache")
+		# 使用 acme.sh 的 --apache 模式，自动在 Apache(httpd) 中临时下发 http-01
+		# 通常系统会提供 apachectl 或 httpd 其中之一
+		if command -v apachectl >/dev/null 2>&1 || command -v httpd >/dev/null 2>&1; then
+			set -- "$@" --apache
+		else
+			log err "validation_method set to 'apache' but no apachectl/httpd found in PATH"
+			exit 1
+		fi
+		;;
 	"webroot")
-		mkdir -p "$CHALLENGE_DIR"
-		set -- "$@" --webroot "$CHALLENGE_DIR"
+		# 明确拒绝旧的 webroot 模式，避免误用导致签发失败
+		# 如需继续使用，请改为 validation_method='nginx' 或 'apache'
+		log err "validation_method 'webroot' is deprecated. Use 'nginx' or 'apache' instead."
+		exit 1
 		;;
 	*)
 		log err "Unsupported validation_method $validation_method"
+		;;
+		exit 1
 		;;
 	esac
 
