@@ -1,12 +1,6 @@
 #!/bin/sh
 . /lib/functions.sh
 
-# Create a symlink to webroot
-if [ -d /www/ ] && [ ! -L /www/.well-known/acme-challenge ] && [ ! -d /www/.well-known/acme-challenge/ ]; then
-	mkdir -p /www/.well-known/
-	ln -s /var/run/acme/challenge/.well-known/acme-challenge /www/.well-known/acme-challenge
-fi
-
 # migrate deprecated opts
 # shellcheck disable=SC2155
 handle_cert() {
@@ -33,6 +27,11 @@ handle_cert() {
 		fi
 	fi
 
+	# 移除已废弃的 webroot 目录配置
+	local webroot=$(uci_get acme "$section" webroot)
+	[ -n "$webroot" ] && uci_remove acme "$section" webroot
+
+
 	local standalone=$(uci_get acme "$section" standalone)
 	[ -n "$standalone" ] && uci_remove acme "$section" standalone
 	local dns=$(uci_get acme "$section" dns)
@@ -43,9 +42,14 @@ handle_cert() {
 		elif [ "$standalone" = 1 ]; then
 			validation_method="standalone"
 		else
-			validation_method="webroot"
+			validation_method="nginx"
 		fi
 		uci_set acme "$section" validation_method "$validation_method"
+	else
+		# 兼容迁移：把旧的 webroot 模式改写为 nginx
+		if [ "$validation_method" = "webroot" ]; then
+			uci_set acme "$section" validation_method "nginx"
+		fi
 	fi
 }
 
@@ -56,7 +60,7 @@ uci_commit
 # Migrate '/etc/init.d/acme start' to '/etc/init.d/acme renew'
 grep -q '/etc/init.d/acme start' /etc/crontabs/root 2>/dev/null && {
 	grep -q '/etc/init.d/acme' /etc/crontabs/root 2>/dev/null || echo "0 0 * * * /etc/init.d/acme renew" >>/etc/crontabs/root
-	sed '/0 0 * * * \/etc\/init.d\/acme start/d' /etc/crontabs/root
+	sed -i '/0 0 * * * \/etc\/init.d\/acme start/d' /etc/crontabs/root
 }
 
 exit 0
