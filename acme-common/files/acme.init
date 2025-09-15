@@ -61,10 +61,7 @@ load_options() {
 	config_get dns_wait "$section" dns_wait
 	export dns_wait
 	config_get webroot "$section" webroot
-	if [ "$webroot" ]; then
-		log warn "Option \"webroot\" is deprecated, please remove it and change your web server's config so it serves ACME challenge requests from $CHALLENGE_DIR."
-		CHALLENGE_DIR=$webroot
-	fi
+	[ "$webroot" ] && log warn "Option \"webroot\" is deprecated and ignored. Use validation_method 'nginx' or 'apache'."
 
 	config_get validation_method "$section" validation_method
 	# if validation_method isn't set then guess it
@@ -74,10 +71,34 @@ load_options() {
 		elif [ "$standalone" = 1 ]; then
 			validation_method="standalone"
 		else
-			validation_method="webroot"
+			validation_method="nginx"
 		fi
 		log warn "Please set \"option validation_method $validation_method\"."
 	fi
+
+	# map deprecated webroot to nginx/apache and do a light auto-fallback
+	if [ "$validation_method" = "webroot" ]; then
+		log warn "validation_method 'webroot' is deprecated; trying 'nginx' instead"
+		validation_method="nginx"
+	fi
+	case "$validation_method" in
+		nginx)
+			if ! command -v nginx >/dev/null 2>&1; then
+				if command -v apachectl >/dev/null 2>&1 || command -v httpd >/dev/null 2>&1; then
+					log warn "nginx not found; falling back to 'apache'"
+					validation_method=apache
+				fi
+			fi
+		;;
+		apache)
+			if ! command -v apachectl >/dev/null 2>&1 && ! command -v httpd >/dev/null 2>&1; then
+				if command -v nginx >/dev/null 2>&1; then
+					log warn "apache not found; falling back to 'nginx'"
+					validation_method=nginx
+				fi
+			fi
+		;;
+	esac
 	export validation_method
 }
 
@@ -92,9 +113,6 @@ get_cert() {
 	[ "$enabled" = 1 ] || return
 
 	load_options "$section"
-	if [ "$validation_method" = "webroot" ]; then
-		mkdir -p "$CHALLENGE_DIR"
-	fi
 
 	if [ "$validation_method" = "standalone" ] && [ -z "$NFT_HANDLE" ]; then
 		if ! NFT_HANDLE=$(nft -a -e insert rule inet fw4 input tcp dport 80 counter accept comment ACME | grep -o 'handle [0-9]\+'); then
@@ -139,7 +157,6 @@ load_globals() {
 
 start_service() {
 	mkdir -p $run_dir
-	mkdir -p "$CHALLENGE_DIR"
 
 	grep -q '/etc/init.d/acme' /etc/crontabs/root 2>/dev/null || {
 		echo "0 0 * * * /etc/init.d/acme renew" >>/etc/crontabs/root
