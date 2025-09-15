@@ -55,21 +55,6 @@
       "branch": "master",
       "src": "net/miniupnpd",
       "dest": "miniupnpd"
-    },
-    {
-      "name": "acme-acmesh",
-      "repo": "https://github.com/openwrt/packages.git",
-      "branch": "master",
-      "src": "net/acme-acmesh",
-      "dest": "acme-acmesh"
-    },
-    {
-      "name": "luci-app-acme",
-      "repo": "https://github.com/openwrt/luci.git",
-      "branch": "master",
-      "src": "applications/luci-app-acme",
-      "dest": "luci-app-acme"
     }
-    
   ]
 }
