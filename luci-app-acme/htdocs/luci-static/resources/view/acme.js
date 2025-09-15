@@ -60,7 +60,6 @@ return view.extend({
 		s.nodescriptions = true;
 
 		o = s.tab("general", _("General Settings"));
-		o = s.tab('challenge_webroot', _('Webroot Challenge Validation'));
 		o = s.tab('challenge_dns', _('DNS Challenge Validation'));
 		o = s.tab("advanced", _('Advanced Settings'));
 
@@ -75,22 +74,18 @@ return view.extend({
 
 		o = s.taboption('general', form.ListValue, 'validation_method', _('Validation method'),
 			_("Standalone mode will use the built-in webserver of acme.sh to issue a certificate. " +
-			"Webroot mode will use an existing webserver to issue a certificate. " +
+			"Nginx/Apache mode will use an existing webserver (auto-configured by acme.sh) to issue a certificate. " +
 			"DNS mode will allow you to use the DNS API of your DNS provider to issue a certificate."));
 		o.value("standalone", _("Standalone"));
-		o.value("webroot", _("Webroot"));
+		o.value("nginx", _("Nginx"));
+		o.value("apache", _("Apache"));
 		o.value("dns", _("DNS"));
-		o.default = 'webroot';
-
-		o = s.taboption('challenge_webroot', form.Value, 'webroot', _('Webroot directory'),
-			_("Webserver root directory. Set this to the webserver " +
-				"document root to run Acme in webroot mode. The web " +
-				"server must be accessible from the internet on port 80.") + '<br/>' +
-			_("Default") + " <em>/var/run/acme/challenge/</em>"
-		);
-		o.optional = true;
-		o.depends("validation_method", "webroot");
-		o.modalonly = true;
+		o.default = 'nginx';
+		o.cfgvalue = function(section_id) {
+			let v = uci.get('acme', section_id, 'validation_method');
+			if (v === 'webroot') return 'nginx';
+			return this.super('cfgvalue', arguments);
+		};
 
 		o = s.taboption('challenge_dns', form.ListValue, 'dns', _('DNS API'),
 			_("To use DNS mode to issue certificates, set this to the name of a DNS API supported by acme.sh. " +
