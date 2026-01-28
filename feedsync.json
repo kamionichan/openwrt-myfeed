@@ -48,6 +48,13 @@
       "branch": "main",
       "src": "ddns-go",
       "dest": "ddns-go"
+    },
+    {
+      "name": "tailscale",
+      "repo": "https://github.com/GuNanOvO/openwrt-tailscale.git",
+      "branch": "main",
+      "src": "package/tailscale",
+      "dest": "tailscale"
     }
   ]
 }
