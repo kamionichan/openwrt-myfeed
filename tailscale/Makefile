@@ -12,8 +12,6 @@ PKG_NAME:=tailscale
 PKG_VERSION:=1.94.2
 PKG_RELEASE:=1
 
-PKG_STRIP:=0
-
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/tailscale/tailscale/tar.gz/v$(PKG_VERSION)?
 PKG_HASH:=c45975beb4cb7bab8047cfba77ec8b170570d184f3c806258844f3e49c60d7aa
@@ -44,8 +42,8 @@ define Package/tailscale
   CATEGORY:=Network
   SUBMENU:=VPN
   TITLE:=Zero config VPN (UPX Compressed)
-  URL:=Original(https://tailscale.com);Smaller(https://github.com/GuNanOvO/openwrt-tailscale)
-  DEPENDS:=$(GO_ARCH_DEPENDS) ca-bundle kmod-tun
+  URL:=https://github.com/GuNanOvO/openwrt-tailscale
+  DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +kmod-tun
   PROVIDES:=tailscale tailscaled
 endef
 
@@ -65,11 +63,18 @@ define Package/tailscale/install
 	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/tailscaled $(1)/usr/sbin
 
 ifneq ($(DISABLE_UPX),1)
-	echo "==> UPX enabled on ARCH $(ARCH)"
-	$(TOPDIR)/upx/upx --best --lzma $(1)/usr/sbin/tailscaled
+	if ! $(TOPDIR)/upx/upx -t $(GO_PKG_BUILD_BIN_DIR)/tailscaled >/dev/null 2>&1; then \
+		echo "==> UPX enabling on ARCH $(ARCH)"; \
+		$(TOPDIR)/upx/upx --best --lzma $(GO_PKG_BUILD_BIN_DIR)/tailscaled; \
+	else \
+		echo "==> UPX already compressed on ARCH $(ARCH)"; \
+	fi
 else
 	echo "==> UPX disabled on ARCH $(ARCH)"
 endif
+
+	mkdir -p /builder/bin/packages/$(ARCH_PACKAGES)/base
+	$(CP) $(GO_PKG_BUILD_BIN_DIR)/tailscaled /builder/bin/packages/$(ARCH_PACKAGES)/base/tailscaled
 
 	$(LN) tailscaled $(1)/usr/sbin/tailscale
 	$(INSTALL_BIN) ./files/tailscale.init $(1)/etc/init.d/tailscale
