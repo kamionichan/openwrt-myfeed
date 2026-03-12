@@ -1,99 +1,79 @@
-name: Sync packages into feed
+name: Sync packages with Patches
 on:
   schedule:
-    - cron: '0 3 * * *'   # 每天UTC 03:00，可改
-  workflow_dispatch:       # 手动触发
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 permissions:
   contents: write
-concurrency:
-  group: sync-feed
-  cancel-in-progress: true
+  pull-requests: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # 让 GITHUB_TOKEN 保持在 git 凭据里，后续 git push 可用
-          persist-credentials: true
-      - name: Ensure jq is available
-        run: |
-          if ! command -v jq >/dev/null 2>&1; then
-            sudo apt-get update && sudo apt-get install -y jq
-          fi
 
-      - name: Sync from manifest
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq rsync patch
+
+      - name: Sync and Patch
         env:
           MANIFEST: feedsync.json
-          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
-          get_or_default() {
-            local query="$1" default="$2"
-            local v
-            v=$(jq -r "$query // empty" "$MANIFEST")
-            if [ -z "$v" ] || [ "$v" = "null" ]; then echo "$default"; else echo "$v"; fi
-          }
-
           count=$(jq '.packages | length' "$MANIFEST")
-          echo "Total packages: $count"
-
+          
           for i in $(seq 0 $((count-1))); do
             name=$(jq -r ".packages[$i].name" "$MANIFEST")
             repo=$(jq -r ".packages[$i].repo" "$MANIFEST")
-            branch=$(get_or_default ".packages[$i].branch" "main")
-            src=$(get_or_default ".packages[$i].src" ".")
-            dest=$(get_or_default ".packages[$i].dest" "$name")
+            branch=$(jq -r ".packages[$i].branch // \"main\"" "$MANIFEST")
+            src=$(jq -r ".packages[$i].src // \".\"" "$MANIFEST")
+            # 强制同步到 packages/ 目录下
+            dest="packages/$name"
 
-            echo "==> Sync $name from $repo@$branch:$src -> $dest"
+            echo "==> Processing $name"
 
-            # 克隆（浅克隆整个仓库，避免 sparse-checkout 丢目录）
+            # 1. 克隆上游
             tmp=$(mktemp -d)
-            if ! git clone --depth=1 -b "$branch" "$repo" "$tmp"; then
-              echo "Fallback to default branch"
-              git clone --depth=1 "$repo" "$tmp"
-            fi
-            
-            # 路径校验
-            if [ ! -d "$tmp/$src" ]; then
-              echo "ERROR: upstream path not found: $src"
-              find "$tmp" -maxdepth 2 -type d
-              exit 1
-            fi
-            
-            # 调试输出：源目录实际包含内容
-            echo "Source listing ($repo@$branch:$src):"
-            find "$tmp/$src" -maxdepth 2 -print
-            
-            # 复制到目标目录（先别用 --delete，确认无误再加回）
+            git clone --depth=1 -b "$branch" "$repo" "$tmp"
+
+            # 2. 彻底同步（先删再拷，确保上游删了本地也删）
+            rm -rf "$dest"
             mkdir -p "$dest"
-            rsync -av \
-              --exclude ".git" \
-              --exclude ".github" \
-              --exclude ".gitmodules" \
-              "$tmp/$src/" "$dest/"
-            
-            # 调试输出：目标目录内容
-            echo "Dest listing after copy ($dest):"
-            find "$dest" -maxdepth 2 -print
-            
+            rsync -av --exclude ".git" "$tmp/$src/" "$dest/"
             rm -rf "$tmp"
+
+            # 3. 自动应用补丁
+            patch_dir="patches/$name"
+            if [ -d "$patch_dir" ]; then
+              echo "Applying patches for $name..."
+              # 按文件名排序应用所有 .patch 文件
+              for p in $(ls "$patch_dir"/*.patch 2>/dev/null | sort); do
+                echo "Applying $p"
+                # -p1 是常用参数，如果补丁打不上，可以尝试 -p0
+                if ! patch -p1 -d "$dest" < "$p"; then
+                  echo "::error::Patch $p failed! 存在代码冲突，请在 PR 中手动处理。"
+                  # 这里不退出，让它继续，但在 PR 中能看到改动
+                fi
+              done
+            fi
           done
-      - name: Commit and push
-        env:
-          MANIFEST: feedsync.json
-        run: |
-          # 配置提交身份
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # 先把变更全部加入暂存区（包含新文件/删除）
-          git add -A
-          jq -r '.packages[] | (.dest // .name)' "$MANIFEST" | sort -u | xargs -I{} git add -f -- {}
-          if git diff --cached --quiet; then
-            echo "No changes."
-          else
-            git commit -m "chore(feed): sync upstream packages [skip ci]"
-            git push origin "HEAD:${{ github.ref_name }}"
-          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(feed): sync and apply patches"
+          branch: sync-upstream-with-patches
+          delete-branch: true
+          title: "🔄 上游插件同步：含自动补丁应用"
+          body: |
+            ### 自动化同步报告
+            - **上游同步**：已完成（采用彻底覆盖模式）。
+            - **自定义补丁**：已尝试应用 `patches/` 目录下的补丁。
+            
+            **请检查：**
+            1. 如果补丁应用成功，你将在 `Files changed` 中看到上游更新 + 你的修改。
+            2. 如果补丁应用失败（代码冲突），该文件将保持上游原始状态，请手动修复补丁。
+            3. 你自己新增的插件（不在 `feedsync.json` 中的）不会被触动。
