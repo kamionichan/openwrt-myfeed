@@ -42,7 +42,7 @@ define Package/tailscale
   CATEGORY:=Network
   SUBMENU:=VPN
   TITLE:=Zero config VPN (UPX Compressed)
-  URL:=https://github.com/GuNanOvO/openwrt-tailscale
+  URL:=https://github.com/tailscale/tailscale
   DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +kmod-tun
   PROVIDES:=tailscale tailscaled
 endef
@@ -60,23 +60,21 @@ endef
 
 define Package/tailscale/install
 	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/init.d $(1)/etc/config
-	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/tailscaled $(1)/usr/sbin
+	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/tailscaled $(1)/usr/sbin/tailscaled
 
 ifneq ($(DISABLE_UPX),1)
-	if ! upx -t $(GO_PKG_BUILD_BIN_DIR)/tailscaled >/dev/null 2>&1; then \
-		echo "==> UPX enabling on ARCH $(ARCH)"; \
-		upx --best --lzma $(GO_PKG_BUILD_BIN_DIR)/tailscaled; \
+	@if [ -x "$$(command -v upx)" ]; then \
+		echo "==> UPX enabling on ARCH $(ARCH)..."; \
+		upx --best --lzma $(1)/usr/sbin/tailscaled; \
 	else \
-		echo "==> UPX already compressed on ARCH $(ARCH)"; \
+		echo "==> [WARNING] UPX not found in PATH, skipping compression"; \
 	fi
 else
-	echo "==> UPX disabled on ARCH $(ARCH)"
+	@echo "==> UPX disabled on ARCH $(ARCH)"
 endif
 
-	mkdir -p /builder/bin/packages/$(ARCH_PACKAGES)/base
-	$(CP) $(GO_PKG_BUILD_BIN_DIR)/tailscaled /builder/bin/packages/$(ARCH_PACKAGES)/base/tailscaled
-
 	$(LN) tailscaled $(1)/usr/sbin/tailscale
+
 	$(INSTALL_BIN) ./files/tailscale.init $(1)/etc/init.d/tailscale
 	$(INSTALL_DATA) ./files/tailscale.conf $(1)/etc/config/tailscale
 endef
