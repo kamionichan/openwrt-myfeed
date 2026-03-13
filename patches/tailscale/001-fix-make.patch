@@ -1,0 +1,36 @@
+diff --git a/packages/tailscale/Makefile b/packages/tailscale/Makefile
+index 9ff9783..04e8729 100644
+--- a/packages/tailscale/Makefile
++++ b/packages/tailscale/Makefile
+@@ -60,22 +60,22 @@ endef
+ 
+ define Package/tailscale/install
+ 	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/init.d $(1)/etc/config
+-	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/tailscaled $(1)/usr/sbin
++	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/tailscaled $(1)/usr/sbin/tailscaled
+ 
+ ifneq ($(DISABLE_UPX),1)
+-	if ! $(TOPDIR)/upx/upx -t $(GO_PKG_BUILD_BIN_DIR)/tailscaled >/dev/null 2>&1; then \
+-		echo "==> UPX enabling on ARCH $(ARCH)"; \
+-		$(TOPDIR)/upx/upx --best --lzma $(GO_PKG_BUILD_BIN_DIR)/tailscaled; \
++	@if command -v upx > /dev/null; then \
++		if ! upx -t $(1)/usr/sbin/tailscaled >/dev/null 2>&1; then \
++			echo "==> UPX enabling on ARCH $(ARCH)"; \
++			upx --best --lzma $(1)/usr/sbin/tailscaled; \
++		else \
++			echo "==> UPX already compressed on ARCH $(ARCH)"; \
++		fi \
+ 	else \
+-		echo "==> UPX already compressed on ARCH $(ARCH)"; \
++		echo "==> [WARNING] upx command not found, skipping compression"; \
+ 	fi
+ else
+ 	echo "==> UPX disabled on ARCH $(ARCH)"
+ endif
+-
+-	mkdir -p /builder/bin/packages/$(ARCH_PACKAGES)/base
+-	$(CP) $(GO_PKG_BUILD_BIN_DIR)/tailscaled /builder/bin/packages/$(ARCH_PACKAGES)/base/tailscaled
+-
+ 	$(LN) tailscaled $(1)/usr/sbin/tailscale
+ 	$(INSTALL_BIN) ./files/tailscale.init $(1)/etc/init.d/tailscale
+ 	$(INSTALL_DATA) ./files/tailscale.conf $(1)/etc/config/tailscale
