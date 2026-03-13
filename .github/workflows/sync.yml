@@ -48,13 +48,17 @@ jobs:
             patch_dir="patches/$name"
             if [ -d "$patch_dir" ]; then
               echo "Applying patches for $name..."
-              # 按文件名排序应用所有 .patch 文件
               for p in $(ls "$patch_dir"/*.patch 2>/dev/null | sort); do
                 echo "Applying $p"
-                # -p1 是常用参数，如果补丁打不上，可以尝试 -p0
-                if ! patch -p1 -d "$dest" < "$p"; then
-                  echo "::error::Patch $p failed! 存在代码冲突，请在 PR 中手动处理。"
-                  # 这里不退出，让它继续，但在 PR 中能看到改动
+                
+                # 尝试用 -p3 (适用于在根目录 git diff 生成的补丁)
+                # 如果 -p3 失败，尝试 -p1 (适用于在插件目录内生成的补丁)
+                if patch -p3 -d "$dest" --dry-run < "$p" > /dev/null 2>&1; then
+                  patch -p3 -d "$dest" < "$p"
+                elif patch -p1 -d "$dest" --dry-run < "$p" > /dev/null 2>&1; then
+                  patch -p1 -d "$dest" < "$p"
+                else
+                  echo "::error::Patch $p 应用失败！请检查路径层级或代码冲突。"
                 fi
               done
             fi
